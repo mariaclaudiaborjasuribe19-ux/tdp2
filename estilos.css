@@ -22,7 +22,7 @@ h2 { color: #1abc9c; margin-top: 20px; border-bottom: 2px solid #ddd; padding-bo
     box-shadow: 0 4px 6px rgba(0,0,0,0.05);
 }
 
-/* --- ESTILO CLAVE: Lista Vertical de Inputs --- */
+/* ESTILO CLAVE: Lista Vertical de Inputs */
 .input-group {
     display: flex;
     flex-direction: column; 
@@ -78,7 +78,7 @@ button:hover { background-color: #2980b9; }
     font-size: 0.95rem;
 }
 
-/* --- CUADRÍCULA DE 4 GRÁFICOS --- */
+/* CUADRÍCULA DE 4 GRÁFICOS */
 .charts-grid {
     display: grid;
     grid-template-columns: 1fr 1fr; /* 2 columnas */
