@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Evaluación de Calidad del Aire</title>
+    <link rel="stylesheet" href="estilos.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+    <div class="container">
+        <h1>💨 Evaluación de Calidad del Aire</h1>
+        <p>Comparación de concentraciones ingresadas contra los Estándares de Calidad Ambiental (ECA) de Perú y los valores guía de la OMS (todos los valores en µg/m³).</p>
+
+        <div class="main-layout">
+            <div class="input-section">
+                <h2>Ingreso de Concentraciones (µg/m³)</h2>
+                <div id="airForm"> 
+                    </div>
+                
+                <button type="button" onclick="evaluar()">Evaluar y Graficar</button>
+            </div>
+
+            <div class="results-section">
+                <h2>Resultados del Análisis</h2>
+                <div id="textResult" class="text-output">Los resultados de la evaluación aparecerán aquí...</div>
+                
+                <h2>Gráficos de Comparación</h2>
+                <div class="chart-container">
+                    <canvas id="comparisonChart"></canvas>
+                </div>
+
+                <div class="chart-container">
+                    <canvas id="pieChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
