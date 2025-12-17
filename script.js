@@ -38,7 +38,6 @@ function evaluar() {
 
         CONTAMINANTES_DATA.forEach(c => {
             const inputEl = document.getElementById(c.id);
-            // Ya no es necesario Math.max(..., 1e-6) porque no usamos logaritmos
             const valor_ingresado = parseFloat(inputEl.value) || 0; 
             
             chartLabels.push(c.name.split('(')[0].trim());
@@ -63,7 +62,7 @@ function evaluar() {
         actualizarGraficos(inputValues, chartLabels);
 
     } catch (error) {
-        alert("Error al procesar datos o generar gráficos. Detalles: " + error.message);
+        alert("Error al procesar datos o generar gráficos. Verifique los valores ingresados. Detalles: " + error.message);
         console.error(error);
     }
 }
@@ -71,66 +70,80 @@ function evaluar() {
 function actualizarGraficos(inputValues, chartLabels) {
     if (typeof Chart === 'undefined') return;
 
-    const labels = CONTAMINANTES_DATA.map(c => c.name.split('(')[0].trim());
-    const omsValues = CONTAMINANTES_DATA.map(c => c.oms);
-    const peruValues = CONTAMINANTES_DATA.map(c => c.peru);
+    // --- FILTRADO DE DATOS (EXCLUYENDO CO para gráficos lineales) ---
+    const filteredData = CONTAMINANTES_DATA.filter(c => c.peru < 1000); // Excluye CO
+
+    const labelsFiltered = filteredData.map(c => c.name.split('(')[0].trim());
+    const omsValuesFiltered = filteredData.map(c => c.oms);
+    const peruValuesFiltered = filteredData.map(c => c.peru);
+
+    // Datos originales (usados para Dispersión y Circular)
+    const labelsAll = CONTAMINANTES_DATA.map(c => c.name.split('(')[0].trim());
+    const omsValuesAll = CONTAMINANTES_DATA.map(c => c.oms);
+    const peruValuesAll = CONTAMINANTES_DATA.map(c => c.peru);
+
 
     // Destruir gráficos anteriores
     Object.values(charts).forEach(chart => {
         if (chart) chart.destroy();
     });
 
-    // CONFIGURACIÓN DE ESCALA LINEAL (La predeterminada)
+    // CONFIGURACIÓN DE ESCALA LINEAL (para Barras y Líneas)
     const linearScaleOptions = {
         y: {
-            type: 'linear', // <-- CAMBIO CLAVE: Escala Lineal
-            title: { display: true, text: 'Concentración (µg/m³)' }
+            type: 'linear', 
+            title: { display: true, text: 'Concentración (µg/m³)' },
+            // Sugerencia: Puedes establecer un max si quieres forzar un límite visual (Opción B)
+            // max: 500, 
         },
         x: { ticks: { autoSkip: false, maxRotation: 45, minRotation: 45 } }
     };
     
-    // 1. GRAFICA DE BARRAS (OMS vs Perú)
+    // 1. GRAFICA DE BARRAS (OMS vs Perú) - USA DATOS FILTRADOS
     const ctx1 = document.getElementById('barChart');
     if (ctx1) { 
         charts.bar = new Chart(ctx1.getContext('2d'), {
             type: 'bar',
             data: {
-                labels: labels,
+                labels: labelsFiltered, // <-- FILTRADO
                 datasets: [
-                    { label: 'Límite OMS', data: omsValues, backgroundColor: 'rgba(241, 196, 15, 0.8)' },
-                    { label: 'Límite Perú', data: peruValues, backgroundColor: 'rgba(52, 152, 219, 0.8)' }
+                    { label: 'Límite OMS', data: omsValuesFiltered, backgroundColor: 'rgba(241, 196, 15, 0.8)' },
+                    { label: 'Límite Perú', data: peruValuesFiltered, backgroundColor: 'rgba(52, 152, 219, 0.8)' }
                 ]
             },
             options: {
-                responsive: true, maintainAspectRatio: false, scales: linearScaleOptions,
+                responsive: true, maintainAspectRatio: false, 
+                scales: linearScaleOptions,
                 plugins: { title: { display: false } }
             }
         });
     }
 
-    // 2. GRAFICA DE LÍNEAS (OMS vs Perú)
+    // 2. GRAFICA DE LÍNEAS (OMS vs Perú) - USA DATOS FILTRADOS
     const ctx2 = document.getElementById('lineChart');
     if (ctx2) { 
         charts.line = new Chart(ctx2.getContext('2d'), {
             type: 'line',
             data: {
-                labels: labels,
+                labels: labelsFiltered, // <-- FILTRADO
                 datasets: [
-                    { label: 'Límite OMS', data: omsValues, borderColor: '#f1c40f', pointStyle: 'circle', tension: 0.1 },
-                    { label: 'Límite Perú', data: peruValues, borderColor: '#3498db', pointStyle: 'rect', tension: 0.1 }
+                    { label: 'Límite OMS', data: omsValuesFiltered, borderColor: '#f1c40f', pointStyle: 'circle', tension: 0.1, borderWidth: 3 },
+                    { label: 'Límite Perú', data: peruValuesFiltered, borderColor: '#3498db', pointStyle: 'rect', tension: 0.1, borderWidth: 3 }
                 ]
             },
             options: {
-                responsive: true, maintainAspectRatio: false, scales: linearScaleOptions,
+                responsive: true, maintainAspectRatio: false, 
+                scales: linearScaleOptions,
                 plugins: { title: { display: false } }
             }
         });
     }
 
-    // 3. GRAFICA DE DISPERSIÓN (OMS vs Perú)
+    // 3. GRAFICA DE DISPERSIÓN (OMS vs Perú) - USA TODOS LOS DATOS (y escala logarítmica)
+    // Dejamos esta gráfica en Logarítmica porque en lineal no se vería NADA.
     const ctx3 = document.getElementById('dispersionChart');
     if (ctx3) { 
-        const scatterData = omsValues.map((oms, index) => ({ x: oms, y: peruValues[index], label: labels[index] }));
+        const scatterData = omsValuesAll.map((oms, index) => ({ x: oms, y: peruValuesAll[index], label: labelsAll[index] }));
         charts.dispersion = new Chart(ctx3.getContext('2d'), {
             type: 'scatter',
             data: {
@@ -141,15 +154,9 @@ function actualizarGraficos(inputValues, chartLabels) {
             options: {
                 responsive: true, maintainAspectRatio: false,
                 scales: {
-                    x: { // <-- CAMBIO CLAVE: Escala Lineal
-                        type: 'linear', 
-                        position: 'bottom',
-                        title: { display: true, text: 'Límite OMS (µg/m³)' }
-                    },
-                    y: { // <-- CAMBIO CLAVE: Escala Lineal
-                        type: 'linear', 
-                        title: { display: true, text: 'Límite Perú (µg/m³)' }
-                    }
+                    // Mantener Logarítmica para Dispersión: Es el único gráfico donde todos los puntos tienen chance de verse.
+                    x: { type: 'logarithmic', position: 'bottom', title: { display: true, text: 'Límite OMS (µg/m³, Log)' } },
+                    y: { type: 'logarithmic', title: { display: true, text: 'Límite Perú (µg/m³, Log)' } }
                 },
                 plugins: {
                     title: { display: false },
@@ -165,16 +172,16 @@ function actualizarGraficos(inputValues, chartLabels) {
         });
     }
 
-    // 4. GRAFICA CIRCULAR (Distribución valores Perú)
+    // 4. GRAFICA CIRCULAR (Distribución valores Perú) - USA TODOS LOS DATOS
     const ctx4 = document.getElementById('pieChart');
     if (ctx4) { 
         const pieColors = ['#f39c12', '#2ecc71', '#3498db', '#9b59b6', '#e74c3c', '#1abc9c', '#f1c40f', '#e67e22', '#34495e', '#7f8c8d', '#c0392b', '#8e44ad'];
         charts.pie = new Chart(ctx4.getContext('2d'), {
             type: 'pie',
             data: {
-                labels: labels,
+                labels: labelsAll,
                 datasets: [{
-                    data: peruValues, backgroundColor: pieColors, hoverOffset: 4
+                    data: peruValuesAll, backgroundColor: pieColors, hoverOffset: 4
                 }]
             },
             options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: false } } }
