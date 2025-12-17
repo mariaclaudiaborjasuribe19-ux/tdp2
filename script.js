@@ -38,8 +38,8 @@ function evaluar() {
 
         CONTAMINANTES_DATA.forEach(c => {
             const inputEl = document.getElementById(c.id);
-            // Usamos Math.max(..., 1e-6) para el logaritmo si el valor es cero o muy pequeño
-            const valor_ingresado = Math.max(parseFloat(inputEl.value) || 0, 1e-6); 
+            // Ya no es necesario Math.max(..., 1e-6) porque no usamos logaritmos
+            const valor_ingresado = parseFloat(inputEl.value) || 0; 
             
             chartLabels.push(c.name.split('(')[0].trim());
             inputValues.push(valor_ingresado);
@@ -63,7 +63,6 @@ function evaluar() {
         actualizarGraficos(inputValues, chartLabels);
 
     } catch (error) {
-        // Muestra el error en la consola y en un alert si falla por otra razón.
         alert("Error al procesar datos o generar gráficos. Detalles: " + error.message);
         console.error(error);
     }
@@ -81,18 +80,18 @@ function actualizarGraficos(inputValues, chartLabels) {
         if (chart) chart.destroy();
     });
 
-    // Configuración de la escala logarítmica (común)
-    const logScaleOptions = {
+    // CONFIGURACIÓN DE ESCALA LINEAL (La predeterminada)
+    const linearScaleOptions = {
         y: {
-            type: 'logarithmic',
-            title: { display: true, text: 'Concentración (µg/m³, Escala Log)' }
+            type: 'linear', // <-- CAMBIO CLAVE: Escala Lineal
+            title: { display: true, text: 'Concentración (µg/m³)' }
         },
         x: { ticks: { autoSkip: false, maxRotation: 45, minRotation: 45 } }
     };
     
     // 1. GRAFICA DE BARRAS (OMS vs Perú)
     const ctx1 = document.getElementById('barChart');
-    if (ctx1) { // <-- Verificación de existencia para evitar error 'getContext'
+    if (ctx1) { 
         charts.bar = new Chart(ctx1.getContext('2d'), {
             type: 'bar',
             data: {
@@ -103,7 +102,7 @@ function actualizarGraficos(inputValues, chartLabels) {
                 ]
             },
             options: {
-                responsive: true, maintainAspectRatio: false, scales: logScaleOptions,
+                responsive: true, maintainAspectRatio: false, scales: linearScaleOptions,
                 plugins: { title: { display: false } }
             }
         });
@@ -111,7 +110,7 @@ function actualizarGraficos(inputValues, chartLabels) {
 
     // 2. GRAFICA DE LÍNEAS (OMS vs Perú)
     const ctx2 = document.getElementById('lineChart');
-    if (ctx2) { // <-- Verificación de existencia
+    if (ctx2) { 
         charts.line = new Chart(ctx2.getContext('2d'), {
             type: 'line',
             data: {
@@ -122,7 +121,7 @@ function actualizarGraficos(inputValues, chartLabels) {
                 ]
             },
             options: {
-                responsive: true, maintainAspectRatio: false, scales: logScaleOptions,
+                responsive: true, maintainAspectRatio: false, scales: linearScaleOptions,
                 plugins: { title: { display: false } }
             }
         });
@@ -130,7 +129,7 @@ function actualizarGraficos(inputValues, chartLabels) {
 
     // 3. GRAFICA DE DISPERSIÓN (OMS vs Perú)
     const ctx3 = document.getElementById('dispersionChart');
-    if (ctx3) { // <-- Verificación de existencia
+    if (ctx3) { 
         const scatterData = omsValues.map((oms, index) => ({ x: oms, y: peruValues[index], label: labels[index] }));
         charts.dispersion = new Chart(ctx3.getContext('2d'), {
             type: 'scatter',
@@ -142,8 +141,15 @@ function actualizarGraficos(inputValues, chartLabels) {
             options: {
                 responsive: true, maintainAspectRatio: false,
                 scales: {
-                    x: { type: 'logarithmic', position: 'bottom', title: { display: true, text: 'Límite OMS (µg/m³, Log)' } },
-                    y: { type: 'logarithmic', title: { display: true, text: 'Límite Perú (µg/m³, Log)' } }
+                    x: { // <-- CAMBIO CLAVE: Escala Lineal
+                        type: 'linear', 
+                        position: 'bottom',
+                        title: { display: true, text: 'Límite OMS (µg/m³)' }
+                    },
+                    y: { // <-- CAMBIO CLAVE: Escala Lineal
+                        type: 'linear', 
+                        title: { display: true, text: 'Límite Perú (µg/m³)' }
+                    }
                 },
                 plugins: {
                     title: { display: false },
@@ -161,7 +167,7 @@ function actualizarGraficos(inputValues, chartLabels) {
 
     // 4. GRAFICA CIRCULAR (Distribución valores Perú)
     const ctx4 = document.getElementById('pieChart');
-    if (ctx4) { // <-- Verificación de existencia
+    if (ctx4) { 
         const pieColors = ['#f39c12', '#2ecc71', '#3498db', '#9b59b6', '#e74c3c', '#1abc9c', '#f1c40f', '#e67e22', '#34495e', '#7f8c8d', '#c0392b', '#8e44ad'];
         charts.pie = new Chart(ctx4.getContext('2d'), {
             type: 'pie',
