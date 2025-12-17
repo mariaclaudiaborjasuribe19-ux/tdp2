@@ -16,7 +16,6 @@ const CONTAMINANTES_DATA = [
 
 let charts = {}; 
 
-// Función para generar dinámicamente los campos de entrada
 function generarInputs() {
     const formDiv = document.getElementById('airForm');
     let html = '';
@@ -24,14 +23,13 @@ function generarInputs() {
         html += `
             <div class="input-group">
                 <label for="${c.id}">${c.name} (µg/m³):</label>
-                <input type="number" id="${c.id}" step="0.1" value="${c.value}">
+                <input type="number" id="${c.id}" step="0.001" value="${c.value}">
             </div>
         `;
     });
     formDiv.innerHTML = html;
 }
 
-// Función principal de evaluación
 function evaluar() {
     try {
         let resultados = "=== ✅ RESULTADOS DE CALIDAD DEL AIRE ===\n\n";
@@ -40,7 +38,7 @@ function evaluar() {
 
         CONTAMINANTES_DATA.forEach(c => {
             const inputEl = document.getElementById(c.id);
-            // Usamos un valor mínimo (1e-6) para que el logaritmo no falle si el input es 0
+            // Usamos Math.max(..., 1e-6) para el logaritmo si el valor es cero o muy pequeño
             const valor_ingresado = Math.max(parseFloat(inputEl.value) || 0, 1e-6); 
             
             chartLabels.push(c.name.split('(')[0].trim());
@@ -62,17 +60,15 @@ function evaluar() {
         });
 
         document.getElementById('textResult').innerText = resultados;
-
-        // Actualizar Gráficos
         actualizarGraficos(inputValues, chartLabels);
 
     } catch (error) {
-        alert("Error: Verifique los valores ingresados. Detalles: " + error.message);
+        // Muestra el error en la consola y en un alert si falla por otra razón.
+        alert("Error al procesar datos o generar gráficos. Detalles: " + error.message);
         console.error(error);
     }
 }
 
-// Función para generar/actualizar gráficos (implementando los 4 tipos originales)
 function actualizarGraficos(inputValues, chartLabels) {
     if (typeof Chart === 'undefined') return;
 
@@ -81,9 +77,11 @@ function actualizarGraficos(inputValues, chartLabels) {
     const peruValues = CONTAMINANTES_DATA.map(c => c.peru);
 
     // Destruir gráficos anteriores
-    Object.values(charts).forEach(chart => chart.destroy());
+    Object.values(charts).forEach(chart => {
+        if (chart) chart.destroy();
+    });
 
-    // Configuración de la escala logarítmica (común a Barras, Líneas y Dispersión)
+    // Configuración de la escala logarítmica (común)
     const logScaleOptions = {
         y: {
             type: 'logarithmic',
@@ -93,131 +91,93 @@ function actualizarGraficos(inputValues, chartLabels) {
     };
     
     // 1. GRAFICA DE BARRAS (OMS vs Perú)
-    const ctx1 = document.getElementById('barChart').getContext('2d');
-    charts.bar = new Chart(ctx1, {
-        type: 'bar',
-        data: {
-            labels: labels,
-            datasets: [
-                {
-                    label: 'Límite OMS',
-                    data: omsValues,
-                    backgroundColor: 'rgba(241, 196, 15, 0.8)', // Amarillo OMS
-                },
-                {
-                    label: 'Límite Perú',
-                    data: peruValues,
-                    backgroundColor: 'rgba(52, 152, 219, 0.8)', // Azul Perú
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: logScaleOptions,
-            plugins: { title: { display: false } }
-        }
-    });
+    const ctx1 = document.getElementById('barChart');
+    if (ctx1) { // <-- Verificación de existencia para evitar error 'getContext'
+        charts.bar = new Chart(ctx1.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    { label: 'Límite OMS', data: omsValues, backgroundColor: 'rgba(241, 196, 15, 0.8)' },
+                    { label: 'Límite Perú', data: peruValues, backgroundColor: 'rgba(52, 152, 219, 0.8)' }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false, scales: logScaleOptions,
+                plugins: { title: { display: false } }
+            }
+        });
+    }
 
     // 2. GRAFICA DE LÍNEAS (OMS vs Perú)
-    const ctx2 = document.getElementById('lineChart').getContext('2d');
-    charts.line = new Chart(ctx2, {
-        type: 'line',
-        data: {
-            labels: labels,
-            datasets: [
-                {
-                    label: 'Límite OMS',
-                    data: omsValues,
-                    borderColor: '#f1c40f', // Amarillo
-                    pointStyle: 'circle',
-                    tension: 0.1
-                },
-                {
-                    label: 'Límite Perú',
-                    data: peruValues,
-                    borderColor: '#3498db', // Azul
-                    pointStyle: 'rect',
-                    tension: 0.1
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: logScaleOptions,
-            plugins: { title: { display: false } }
-        }
-    });
+    const ctx2 = document.getElementById('lineChart');
+    if (ctx2) { // <-- Verificación de existencia
+        charts.line = new Chart(ctx2.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    { label: 'Límite OMS', data: omsValues, borderColor: '#f1c40f', pointStyle: 'circle', tension: 0.1 },
+                    { label: 'Límite Perú', data: peruValues, borderColor: '#3498db', pointStyle: 'rect', tension: 0.1 }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false, scales: logScaleOptions,
+                plugins: { title: { display: false } }
+            }
+        });
+    }
 
     // 3. GRAFICA DE DISPERSIÓN (OMS vs Perú)
-    const ctx3 = document.getElementById('dispersionChart').getContext('2d');
-    
-    // Transformamos los datos para Dispersión: (x=OMS, y=Perú)
-    const scatterData = omsValues.map((oms, index) => ({ x: oms, y: peruValues[index], label: labels[index] }));
-
-    charts.dispersion = new Chart(ctx3, {
-        type: 'scatter',
-        data: {
-            datasets: [{
-                label: 'Contaminantes',
-                data: scatterData,
-                backgroundColor: 'red',
-                pointRadius: 8,
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                x: {
-                    type: 'logarithmic',
-                    position: 'bottom',
-                    title: { display: true, text: 'Límite OMS (µg/m³, Log)' }
-                },
-                y: {
-                    type: 'logarithmic',
-                    title: { display: true, text: 'Límite Perú (µg/m³, Log)' }
-                }
+    const ctx3 = document.getElementById('dispersionChart');
+    if (ctx3) { // <-- Verificación de existencia
+        const scatterData = omsValues.map((oms, index) => ({ x: oms, y: peruValues[index], label: labels[index] }));
+        charts.dispersion = new Chart(ctx3.getContext('2d'), {
+            type: 'scatter',
+            data: {
+                datasets: [{
+                    label: 'Contaminantes', data: scatterData, backgroundColor: 'red', pointRadius: 8,
+                }]
             },
-            plugins: {
-                title: { display: false },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            return `${context.raw.label}: OMS ${context.raw.x} / Perú ${context.raw.y}`;
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                scales: {
+                    x: { type: 'logarithmic', position: 'bottom', title: { display: true, text: 'Límite OMS (µg/m³, Log)' } },
+                    y: { type: 'logarithmic', title: { display: true, text: 'Límite Perú (µg/m³, Log)' } }
+                },
+                plugins: {
+                    title: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return `${context.raw.label}: OMS ${context.raw.x} / Perú ${context.raw.y}`;
+                            }
                         }
                     }
                 }
             }
-        }
-    });
+        });
+    }
 
     // 4. GRAFICA CIRCULAR (Distribución valores Perú)
-    const ctx4 = document.getElementById('pieChart').getContext('2d');
-    
-    const pieColors = ['#f39c12', '#2ecc71', '#3498db', '#9b59b6', '#e74c3c', '#1abc9c', '#f1c40f', '#e67e22', '#34495e', '#7f8c8d', '#c0392b', '#8e44ad'];
-    
-    charts.pie = new Chart(ctx4, {
-        type: 'pie',
-        data: {
-            labels: labels,
-            datasets: [{
-                data: peruValues,
-                backgroundColor: pieColors,
-                hoverOffset: 4
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { title: { display: false } }
-        }
-    });
+    const ctx4 = document.getElementById('pieChart');
+    if (ctx4) { // <-- Verificación de existencia
+        const pieColors = ['#f39c12', '#2ecc71', '#3498db', '#9b59b6', '#e74c3c', '#1abc9c', '#f1c40f', '#e67e22', '#34495e', '#7f8c8d', '#c0392b', '#8e44ad'];
+        charts.pie = new Chart(ctx4.getContext('2d'), {
+            type: 'pie',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: peruValues, backgroundColor: pieColors, hoverOffset: 4
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: false } } }
+        });
+    }
 }
 
 // Inicializar la interfaz al cargar
 window.onload = function() {
     generarInputs();
-    evaluar(); // Realiza una evaluación inicial con los valores predeterminados
+    evaluar();
 };
