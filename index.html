@@ -6,6 +6,7 @@
     <title>Evaluación de Calidad del Aire</title>
     <link rel="stylesheet" href="estilos.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@2.1.1"></script>
 </head>
 <body>
 
@@ -23,16 +24,28 @@
             </div>
 
             <div class="results-section">
-                <h2>Resultados del Análisis</h2>
+                <h2>📝 Resultados del Análisis</h2>
                 <div id="textResult" class="text-output">Los resultados de la evaluación aparecerán aquí...</div>
                 
-                <h2>Gráficos de Comparación</h2>
-                <div class="chart-container">
-                    <canvas id="comparisonChart"></canvas>
-                </div>
-
-                <div class="chart-container">
-                    <canvas id="pieChart"></canvas>
+                <h2>📈 Gráficos de Comparación ECA (OMS vs Perú)</h2>
+                
+                <div class="charts-grid">
+                    <div class="chart-container">
+                        <p class="chart-title">Gráfica de Barras: OMS vs Perú (Logarítmica)</p>
+                        <canvas id="barChart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <p class="chart-title">Gráfica de Líneas: OMS vs Perú (Logarítmica)</p>
+                        <canvas id="lineChart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <p class="chart-title">Gráfica de Dispersión: OMS vs Perú (Logarítmica)</p>
+                        <canvas id="dispersionChart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <p class="chart-title">Gráfica Circular: Distribución Valores Perú</p>
+                        <canvas id="pieChart"></canvas>
+                    </div>
                 </div>
             </div>
         </div>
