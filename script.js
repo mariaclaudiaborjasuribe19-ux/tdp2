@@ -1,196 +1,395 @@
-// Data basada en tu DataFrame de Python
-const CONTAMINANTES_DATA = [
-    { name: 'Dióxido de Azufre (24h)', id: 'so2_24', oms: 20, peru: 365, value: 5 },
-    { name: 'Dióxido de Azufre (Anual)', id: 'so2_anual', oms: 20, peru: 50, value: 3 },
-    { name: 'PM-10 (24h)', id: 'pm10_24', oms: 50, peru: 150, value: 40 },
-    { name: 'PM-10 (Anual)', id: 'pm10_anual', oms: 20, peru: 50, value: 15 },
-    { name: 'PM-2.5 (24h)', id: 'pm25_24', oms: 25, peru: 65, value: 10 },
-    { name: 'PM-2.5 (Anual)', id: 'pm25_anual', oms: 10, peru: 15, value: 5 },
-    { name: 'Monóxido de Carbono (8h)', id: 'co_8h', oms: 10000, peru: 10000, value: 500 },
-    { name: 'Monóxido de Carbono (1h)', id: 'co_1h', oms: 30000, peru: 30000, value: 1000 },
-    { name: 'Dióxido de Nitrógeno (1h)', id: 'no2_1h', oms: 200, peru: 200, value: 50 },
-    { name: 'Dióxido de Nitrógeno (Anual)', id: 'no2_anual', oms: 40, peru: 100, value: 30 },
-    { name: 'Ozono (8h)', id: 'o3_8h', oms: 100, peru: 120, value: 80 },
-    { name: 'Plomo (Anual)', id: 'pb_anual', oms: 0.5, peru: 0.5, value: 0.1 },
+// ============================================================
+// CALIDAD DEL AIRE - Datos y Lógica JavaScript
+// ============================================================
+
+const CONTAMINANTS_DATA = [
+    { name: 'Dióxido de Azufre (24h)', oms: 20, peru: 365, unit: 'µg/m³' },
+    { name: 'Dióxido de Azufre (Anual)', oms: 20, peru: 50, unit: 'µg/m³' },
+    { name: 'PM-10 (24h)', oms: 50, peru: 150, unit: 'µg/m³' },
+    { name: 'PM-10 (Anual)', oms: 20, peru: 50, unit: 'µg/m³' },
+    { name: 'PM-2.5 (24h)', oms: 25, peru: 65, unit: 'µg/m³' },
+    { name: 'PM-2.5 (Anual)', oms: 10, peru: 15, unit: 'µg/m³' },
+    { name: 'Monóxido de Carbono (8h)', oms: 10000, peru: 10000, unit: 'µg/m³' },
+    { name: 'Monóxido de Carbono (1h)', oms: 30000, peru: 30000, unit: 'µg/m³' },
+    { name: 'Dióxido de Nitrógeno (1h)', oms: 200, peru: 200, unit: 'µg/m³' },
+    { name: 'Dióxido de Nitrógeno (Anual)', oms: 40, peru: 100, unit: 'µg/m³' },
+    { name: 'Ozono (8h)', oms: 100, peru: 120, unit: 'µg/m³' },
+    { name: 'Plomo (Anual)', oms: 0.5, peru: 0.5, unit: 'µg/m³' }
 ];
 
-let charts = {}; 
+const container = document.getElementById('contaminants-container');
+const btnEvaluar = document.getElementById('btn-evaluar');
+const textResultados = document.getElementById('text-resultados');
+const chartControls = document.getElementById('chart-controls');
+const canvas = document.getElementById('airQualityChart');
 
-function generarInputs() {
-    const formDiv = document.getElementById('airForm');
-    let html = '';
-    CONTAMINANTES_DATA.forEach(c => {
-        html += `
-            <div class="input-group">
-                <label for="${c.id}">${c.name} (µg/m³):</label>
-                <input type="number" id="${c.id}" step="0.001" value="${c.value}">
-            </div>
+let currentChart = null; // Variable para almacenar la instancia actual del gráfico Chart.js
+
+// ============================================================
+// Funciones de Inicialización
+// ============================================================
+
+/**
+ * Genera dinámicamente los campos de entrada para cada contaminante.
+ */
+function initializeInputs() {
+    CONTAMINANTS_DATA.forEach((data, index) => {
+        const div = document.createElement('div');
+        div.className = 'contaminant-entry';
+        div.innerHTML = `
+            <label for="input-${index}">${data.name} (${data.unit}):</label>
+            <input type="number" id="input-${index}" min="0" value="0" step="0.01">
         `;
+        container.appendChild(div);
     });
-    formDiv.innerHTML = html;
 }
 
+// ============================================================
+// Funciones de Evaluación
+// ============================================================
+
+/**
+ * Recoge los valores de entrada y evalúa la calidad del aire
+ * según los estándares de la OMS y Perú.
+ */
 function evaluar() {
-    try {
-        let resultados = "=== ✅ RESULTADOS DE CALIDAD DEL AIRE ===\n\n";
-        const inputValues = [];
-        const chartLabels = [];
+    let resultados = "=== RESULTADOS DE CALIDAD DEL AIRE ===\n\n";
+    let error = false;
 
-        CONTAMINANTES_DATA.forEach(c => {
-            const inputEl = document.getElementById(c.id);
-            const valor_ingresado = parseFloat(inputEl.value) || 0; 
-            
-            chartLabels.push(c.name.split('(')[0].trim());
-            inputValues.push(valor_ingresado);
+    CONTAMINANTS_DATA.forEach((data, index) => {
+        const inputElement = document.getElementById(`input-${index}`);
+        let valorIngresado;
 
-            let resultado_texto;
-            const oms = c.oms;
-            const peru = c.peru;
-
-            if (valor_ingresado <= oms) {
-                resultado_texto = `✔ ${c.name}: Cumple OMS (${oms}) y Perú (${peru})`;
-            } else if (valor_ingresado <= peru) {
-                resultado_texto = `⚠ ${c.name}: Cumple Perú (${peru}), excede OMS (${oms})`;
-            } else {
-                resultado_texto = `❌ ${c.name}: Excede OMS (${oms}) y Perú (${peru})`;
+        try {
+            valorIngresado = parseFloat(inputElement.value);
+            if (isNaN(valorIngresado) || valorIngresado < 0) {
+                throw new Error("Valor inválido");
             }
+        } catch (e) {
+            error = true;
+            return; // Salir del forEach si hay un error
+        }
 
-            resultados += resultado_texto + "\n";
-        });
+        const { name, oms, peru } = data;
+        let resultado;
 
-        document.getElementById('textResult').innerText = resultados;
-        actualizarGraficos(inputValues, chartLabels);
+        if (valorIngresado <= oms) {
+            resultado = `✔ ${name}: Cumple OMS (${oms}) y Perú (${peru})`;
+        } else if (valorIngresado <= peru) {
+            resultado = `⚠ ${name}: Cumple Perú (${peru}), excede OMS (${oms})`;
+        } else {
+            resultado = `✘ ${name}: Excede OMS (${oms}) y Perú (${peru})`;
+        }
 
-    } catch (error) {
-        alert("Error al procesar datos o generar gráficos. Verifique los valores ingresados. Detalles: " + error.message);
-        console.error(error);
+        resultados += resultado + "\n";
+    });
+
+    if (error) {
+        textResultados.textContent = "Error: Verifique que todos los valores ingresados sean números válidos y positivos.";
+    } else {
+        textResultados.textContent = resultados;
     }
 }
 
-function actualizarGraficos(inputValues, chartLabels) {
-    if (typeof Chart === 'undefined') return;
+// ============================================================
+// Funciones de Gráficos (Usando Chart.js)
+// ============================================================
 
-    // --- FILTRADO DE DATOS (EXCLUYENDO CO para gráficos lineales) ---
-    const filteredData = CONTAMINANTES_DATA.filter(c => c.peru < 1000); // Excluye CO
+/**
+ * Destruye la instancia de gráfico anterior si existe.
+ */
+function destroyChart() {
+    if (currentChart) {
+        currentChart.destroy();
+    }
+}
 
-    const labelsFiltered = filteredData.map(c => c.name.split('(')[0].trim());
-    const omsValuesFiltered = filteredData.map(c => c.oms);
-    const peruValuesFiltered = filteredData.map(c => c.peru);
-
-    // Datos originales (usados para Dispersión y Circular)
-    const labelsAll = CONTAMINANTES_DATA.map(c => c.name.split('(')[0].trim());
-    const omsValuesAll = CONTAMINANTES_DATA.map(c => c.oms);
-    const peruValuesAll = CONTAMINANTES_DATA.map(c => c.peru);
-
-
-    // Destruir gráficos anteriores
-    Object.values(charts).forEach(chart => {
-        if (chart) chart.destroy();
+/**
+ * Función genérica para crear y mostrar gráficos con Chart.js.
+ * @param {string} type - Tipo de gráfico ('bar', 'scatter', 'line', 'doughnut').
+ * @param {object} config - Objeto de configuración de Chart.js.
+ */
+function renderChart(type, config) {
+    destroyChart();
+    // Chart.js usa 'doughnut' para lo que se suele llamar 'pie'
+    const chartType = type === 'pie' ? 'doughnut' : type; 
+    currentChart = new Chart(canvas, {
+        type: chartType,
+        data: config.data,
+        options: config.options
     });
+}
 
-    // CONFIGURACIÓN DE ESCALA LINEAL (para Barras y Líneas)
-    const linearScaleOptions = {
-        y: {
-            type: 'linear', 
-            title: { display: true, text: 'Concentración (µg/m³)' },
-            // Sugerencia: Puedes establecer un max si quieres forzar un límite visual (Opción B)
-            // max: 500, 
-        },
-        x: { ticks: { autoSkip: false, maxRotation: 45, minRotation: 45 } }
-    };
-    
-    // 1. GRAFICA DE BARRAS (OMS vs Perú) - USA DATOS FILTRADOS
-    const ctx1 = document.getElementById('barChart');
-    if (ctx1) { 
-        charts.bar = new Chart(ctx1.getContext('2d'), {
-            type: 'bar',
-            data: {
-                labels: labelsFiltered, // <-- FILTRADO
-                datasets: [
-                    { label: 'Límite OMS', data: omsValuesFiltered, backgroundColor: 'rgba(241, 196, 15, 0.8)' },
-                    { label: 'Límite Perú', data: peruValuesFiltered, backgroundColor: 'rgba(52, 152, 219, 0.8)' }
-                ]
-            },
-            options: {
-                responsive: true, maintainAspectRatio: false, 
-                scales: linearScaleOptions,
-                plugins: { title: { display: false } }
-            }
-        });
-    }
+/**
+ * Crea la configuración para el gráfico de Barras (OMS vs Perú).
+ */
+function graficarBarras() {
+    const labels = CONTAMINANTS_DATA.map(d => d.name.replace(' ', '\n')); // Rotar nombres
+    const omsData = CONTAMINANTS_DATA.map(d => d.oms);
+    const peruData = CONTAMINANTS_DATA.map(d => d.peru);
 
-    // 2. GRAFICA DE LÍNEAS (OMS vs Perú) - USA DATOS FILTRADOS
-    const ctx2 = document.getElementById('lineChart');
-    if (ctx2) { 
-        charts.line = new Chart(ctx2.getContext('2d'), {
-            type: 'line',
-            data: {
-                labels: labelsFiltered, // <-- FILTRADO
-                datasets: [
-                    { label: 'Límite OMS', data: omsValuesFiltered, borderColor: '#f1c40f', pointStyle: 'circle', tension: 0.1, borderWidth: 3 },
-                    { label: 'Límite Perú', data: peruValuesFiltered, borderColor: '#3498db', pointStyle: 'rect', tension: 0.1, borderWidth: 3 }
-                ]
-            },
-            options: {
-                responsive: true, maintainAspectRatio: false, 
-                scales: linearScaleOptions,
-                plugins: { title: { display: false } }
-            }
-        });
-    }
-
-    // 3. GRAFICA DE DISPERSIÓN (OMS vs Perú) - USA TODOS LOS DATOS (y escala logarítmica)
-    // Dejamos esta gráfica en Logarítmica porque en lineal no se vería NADA.
-    const ctx3 = document.getElementById('dispersionChart');
-    if (ctx3) { 
-        const scatterData = omsValuesAll.map((oms, index) => ({ x: oms, y: peruValuesAll[index], label: labelsAll[index] }));
-        charts.dispersion = new Chart(ctx3.getContext('2d'), {
-            type: 'scatter',
-            data: {
-                datasets: [{
-                    label: 'Contaminantes', data: scatterData, backgroundColor: 'red', pointRadius: 8,
-                }]
-            },
-            options: {
-                responsive: true, maintainAspectRatio: false,
-                scales: {
-                    // Mantener Logarítmica para Dispersión: Es el único gráfico donde todos los puntos tienen chance de verse.
-                    x: { type: 'logarithmic', position: 'bottom', title: { display: true, text: 'Límite OMS (µg/m³, Log)' } },
-                    y: { type: 'logarithmic', title: { display: true, text: 'Límite Perú (µg/m³, Log)' } }
+    const config = {
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'OMS',
+                    data: omsData,
+                    backgroundColor: 'rgba(0, 123, 255, 0.7)',
+                    borderColor: 'rgba(0, 123, 255, 1)',
+                    borderWidth: 1
                 },
-                plugins: {
-                    title: { display: false },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                return `${context.raw.label}: OMS ${context.raw.x} / Perú ${context.raw.y}`;
-                            }
-                        }
+                {
+                    label: 'Perú',
+                    data: peruData,
+                    backgroundColor: 'rgba(40, 167, 69, 0.7)',
+                    borderColor: 'rgba(40, 167, 69, 1)',
+                    borderWidth: 1
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Gráfica de Barras: OMS vs Perú'
+                },
+                legend: {
+                    position: 'top',
+                }
+            },
+            scales: {
+                x: {
+                    title: {
+                        display: false,
+                        text: 'Contaminante'
+                    },
+                    ticks: {
+                        autoSkip: false // Mostrar todas las etiquetas
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Concentración (µg/m³)'
                     }
                 }
             }
-        });
-    }
+        }
+    };
+    renderChart('bar', config);
+}
 
-    // 4. GRAFICA CIRCULAR (Distribución valores Perú) - USA TODOS LOS DATOS
-    const ctx4 = document.getElementById('pieChart');
-    if (ctx4) { 
-        const pieColors = ['#f39c12', '#2ecc71', '#3498db', '#9b59b6', '#e74c3c', '#1abc9c', '#f1c40f', '#e67e22', '#34495e', '#7f8c8d', '#c0392b', '#8e44ad'];
-        charts.pie = new Chart(ctx4.getContext('2d'), {
-            type: 'pie',
-            data: {
-                labels: labelsAll,
-                datasets: [{
-                    data: peruValuesAll, backgroundColor: pieColors, hoverOffset: 4
-                }]
+/**
+ * Crea la configuración para el gráfico de Dispersión (OMS vs Perú).
+ */
+function graficarDispersion() {
+    const dataPoints = CONTAMINANTS_DATA.map(d => ({ x: d.oms, y: d.peru }));
+    const labels = CONTAMINANTS_DATA.map(d => d.name);
+
+    const config = {
+        data: {
+            datasets: [
+                {
+                    label: 'Puntos (Perú vs OMS)',
+                    data: dataPoints,
+                    backgroundColor: 'rgba(220, 53, 69, 1)', // Rojo
+                    pointRadius: 6,
+                    pointHoverRadius: 8,
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Gráfica de Dispersión: OMS (X) vs Perú (Y)'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `${labels[context.dataIndex]} | OMS: ${context.parsed.x}, Perú: ${context.parsed.y}`;
+                        }
+                    }
+                }
             },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: false } } }
-        });
+            scales: {
+                x: {
+                    title: {
+                        display: true,
+                        text: 'OMS (µg/m³)'
+                    },
+                    type: 'linear',
+                    position: 'bottom',
+                    beginAtZero: true
+                },
+                y: {
+                    title: {
+                        display: true,
+                        text: 'Perú (µg/m³)'
+                    },
+                    beginAtZero: true
+                }
+            }
+        }
+    };
+    renderChart('scatter', config);
+}
+
+/**
+ * Crea la configuración para el gráfico de Líneas (OMS vs Perú).
+ */
+function graficarLineas() {
+    const labels = CONTAMINANTS_DATA.map(d => d.name);
+    const omsData = CONTAMINANTS_DATA.map(d => d.oms);
+    const peruData = CONTAMINANTS_DATA.map(d => d.peru);
+
+    const config = {
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'OMS',
+                    data: omsData,
+                    borderColor: 'rgba(0, 123, 255, 1)',
+                    backgroundColor: 'rgba(0, 123, 255, 0.2)',
+                    fill: false,
+                    tension: 0.1,
+                    pointStyle: 'circle'
+                },
+                {
+                    label: 'Perú',
+                    data: peruData,
+                    borderColor: 'rgba(40, 167, 69, 1)',
+                    backgroundColor: 'rgba(40, 167, 69, 0.2)',
+                    fill: false,
+                    tension: 0.1,
+                    pointStyle: 'rect'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Gráfica de Líneas: OMS vs Perú'
+                },
+                legend: {
+                    position: 'top',
+                }
+            },
+            scales: {
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Contaminante'
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Concentración (µg/m³)'
+                    }
+                }
+            }
+        }
+    };
+    renderChart('line', config);
+}
+
+/**
+ * Crea la configuración para el gráfico Circular (Distribución valores Perú).
+ */
+function graficarCircular() {
+    const labels = CONTAMINANTS_DATA.map(d => d.name);
+    const peruData = CONTAMINANTS_DATA.map(d => d.peru);
+
+    // Colores aleatorios para el gráfico circular
+    const backgroundColors = [
+        '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40',
+        '#C9CBCE', '#A3B18A', '#588157', '#3A6351', '#2C4F3C', '#1D3B2C'
+    ];
+
+    const config = {
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    data: peruData,
+                    backgroundColor: backgroundColors.slice(0, peruData.length),
+                    hoverOffset: 4
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Gráfica Circular (Doughnut): Distribución valores Perú'
+                },
+                legend: {
+                    position: 'right',
+                }
+            }
+        }
+    };
+    renderChart('pie', config);
+}
+
+// Mapeo de tipos de gráfico a sus funciones
+const chartFunctions = {
+    'bar': graficarBarras,
+    'scatter': graficarDispersion,
+    'line': graficarLineas,
+    'pie': graficarCircular
+};
+
+// ============================================================
+// Manejadores de Eventos
+// ============================================================
+
+/**
+ * Maneja el clic en los botones de control de gráficos.
+ * @param {Event} event - El objeto de evento de clic.
+ */
+function handleChartControlClick(event) {
+    const button = event.target.closest('button');
+    if (!button) return;
+
+    const chartType = button.getAttribute('data-chart-type');
+
+    // Quitar la clase 'active' de todos los botones
+    document.querySelectorAll('#chart-controls button').forEach(b => {
+        b.classList.remove('active');
+    });
+
+    // Agregar la clase 'active' al botón clickeado
+    button.classList.add('active');
+
+    // Llamar a la función de gráfico correspondiente
+    if (chartFunctions[chartType]) {
+        chartFunctions[chartType]();
     }
 }
 
-// Inicializar la interfaz al cargar
-window.onload = function() {
-    generarInputs();
-    evaluar();
-};
+// ============================================================
+// Inicialización al cargar la página
+// ============================================================
+document.addEventListener('DOMContentLoaded', () => {
+    initializeInputs();
+    btnEvaluar.addEventListener('click', evaluar);
+    chartControls.addEventListener('click', handleChartControlClick);
+
+    // Inicializar con la gráfica de barras por defecto
+    graficarBarras(); 
+});
