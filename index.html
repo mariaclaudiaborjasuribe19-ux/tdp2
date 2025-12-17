@@ -4,52 +4,48 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Evaluación de Calidad del Aire</title>
-    <link rel="stylesheet" href="estilos.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@2.1.1"></script>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body>
 
-    <div class="container">
-        <h1>💨 Evaluación de Calidad del Aire</h1>
-        <p>Comparación de concentraciones ingresadas contra los Estándares de Calidad Ambiental (ECA) de Perú y los valores guía de la OMS (todos los valores en µg/m³).</p>
+    <header>
+        <h1>Evaluación de Calidad del Aire</h1>
+        <p>Estándares OMS vs Perú (Valores en µg/m³)</p>
+    </header>
 
-        <div class="main-layout">
-            <div class="input-section">
-                <h2>Ingreso de Concentraciones (µg/m³)</h2>
-                <div id="airForm"> 
-                    </div>
-                
-                <button type="button" onclick="evaluar()">Evaluar y Graficar</button>
-            </div>
-
-            <div class="results-section">
-                <h2>📝 Resultados del Análisis</h2>
-                <div id="textResult" class="text-output">Los resultados de la evaluación aparecerán aquí...</div>
-                
-                <h2>📈 Gráficos de Comparación ECA (OMS vs Perú)</h2>
-                
-                <div class="charts-grid">
-                    <div class="chart-container">
-                        <p class="chart-title">Gráfica de Barras: OMS vs Perú (Logarítmica)</p>
-                        <canvas id="barChart"></canvas>
-                    </div>
-                    <div class="chart-container">
-                        <p class="chart-title">Gráfica de Líneas: OMS vs Perú (Logarítmica)</p>
-                        <canvas id="lineChart"></canvas>
-                    </div>
-                    <div class="chart-container">
-                        <p class="chart-title">Gráfica de Dispersión: OMS vs Perú (Logarítmica)</p>
-                        <canvas id="dispersionChart"></canvas>
-                    </div>
-                    <div class="chart-container">
-                        <p class="chart-title">Gráfica Circular: Distribución Valores Perú</p>
-                        <canvas id="pieChart"></canvas>
-                    </div>
+    <main>
+        <div id="input-section">
+            <h2>Ingrese los Valores de Contaminantes</h2>
+            <div id="contaminants-container">
                 </div>
+            
+            <button id="btn-evaluar">Evaluar Calidad del Aire</button>
+        </div>
+
+        <div id="results-section">
+            <h2>Resultados</h2>
+            <pre id="text-resultados">=== RESULTADOS DE CALIDAD DEL AIRE ===</pre>
+        </div>
+
+        <div id="charts-section">
+            <h2>Visualización de Datos</h2>
+            <div id="chart-controls">
+                <button data-chart-type="bar" class="active">Gráfica Barras</button>
+                <button data-chart-type="scatter">Gráfica Dispersión</button>
+                <button data-chart-type="line">Gráfica Líneas</button>
+                <button data-chart-type="pie">Gráfica Circular</button>
+            </div>
+            
+            <div class="chart-container">
+                <canvas id="airQualityChart"></canvas>
             </div>
         </div>
-    </div>
+    </main>
+
+    <footer>
+        <p>Adaptado de código Python/Tkinter</p>
+    </footer>
 
     <script src="script.js"></script>
 </body>
