@@ -14,8 +14,7 @@ const CONTAMINANTES_DATA = [
     { name: 'Plomo (Anual)', id: 'pb_anual', oms: 0.5, peru: 0.5, value: 0.1 },
 ];
 
-let comparisonChart;
-let pieChart;
+let charts = {}; 
 
 // Función para generar dinámicamente los campos de entrada
 function generarInputs() {
@@ -41,9 +40,10 @@ function evaluar() {
 
         CONTAMINANTES_DATA.forEach(c => {
             const inputEl = document.getElementById(c.id);
-            const valor_ingresado = parseFloat(inputEl.value) || 0;
+            // Usamos un valor mínimo (1e-6) para que el logaritmo no falle si el input es 0
+            const valor_ingresado = Math.max(parseFloat(inputEl.value) || 0, 1e-6); 
             
-            chartLabels.push(c.name.split('(')[0].trim()); // Usar nombre corto para el gráfico
+            chartLabels.push(c.name.split('(')[0].trim());
             inputValues.push(valor_ingresado);
 
             let resultado_texto;
@@ -67,129 +67,151 @@ function evaluar() {
         actualizarGraficos(inputValues, chartLabels);
 
     } catch (error) {
-        alert("Error: Verifique los valores ingresados o si faltan campos. Detalles: " + error.message);
+        alert("Error: Verifique los valores ingresados. Detalles: " + error.message);
         console.error(error);
     }
 }
 
-// Función para generar/actualizar gráficos
+// Función para generar/actualizar gráficos (implementando los 4 tipos originales)
 function actualizarGraficos(inputValues, chartLabels) {
     if (typeof Chart === 'undefined') return;
 
+    const labels = CONTAMINANTES_DATA.map(c => c.name.split('(')[0].trim());
     const omsValues = CONTAMINANTES_DATA.map(c => c.oms);
     const peruValues = CONTAMINANTES_DATA.map(c => c.peru);
 
-    // --- Gráfico de Comparación (Barra + Línea, con Escala Logarítmica) ---
-    const ctx1 = document.getElementById('comparisonChart').getContext('2d');
-    
-    // Destruir el gráfico anterior si existe
-    if (comparisonChart) comparisonChart.destroy();
+    // Destruir gráficos anteriores
+    Object.values(charts).forEach(chart => chart.destroy());
 
-    comparisonChart = new Chart(ctx1, {
+    // Configuración de la escala logarítmica (común a Barras, Líneas y Dispersión)
+    const logScaleOptions = {
+        y: {
+            type: 'logarithmic',
+            title: { display: true, text: 'Concentración (µg/m³, Escala Log)' }
+        },
+        x: { ticks: { autoSkip: false, maxRotation: 45, minRotation: 45 } }
+    };
+    
+    // 1. GRAFICA DE BARRAS (OMS vs Perú)
+    const ctx1 = document.getElementById('barChart').getContext('2d');
+    charts.bar = new Chart(ctx1, {
         type: 'bar',
         data: {
-            labels: chartLabels,
+            labels: labels,
             datasets: [
                 {
-                    label: 'Perú (ECA)',
-                    data: peruValues,
-                    backgroundColor: 'rgba(52, 152, 219, 0.6)', // Azul Perú
-                    borderColor: 'rgba(52, 152, 219, 1)',
-                    borderWidth: 1,
-                    order: 2, // Asegura que las barras se dibujen primero
-                },
-                {
-                    label: 'OMS (Guía)',
+                    label: 'Límite OMS',
                     data: omsValues,
-                    backgroundColor: 'rgba(231, 76, 60, 0.6)', // Rojo OMS
-                    borderColor: 'rgba(231, 76, 60, 1)',
-                    borderWidth: 1,
-                    order: 3,
+                    backgroundColor: 'rgba(241, 196, 15, 0.8)', // Amarillo OMS
                 },
                 {
-                    label: 'Valor Ingresado',
-                    data: inputValues,
-                    type: 'line',
-                    borderColor: '#1abc9c', // Verde Turquesa
-                    backgroundColor: '#1abc9c',
-                    pointRadius: 6,
-                    borderWidth: 3,
-                    fill: false,
-                    order: 1, // Dibuja la línea por encima de las barras
+                    label: 'Límite Perú',
+                    data: peruValues,
+                    backgroundColor: 'rgba(52, 152, 219, 0.8)', // Azul Perú
                 }
             ]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: {
-                title: {
-                    display: true,
-                    text: 'Comparación de Valores Ingresados vs ECA (Escala Logarítmica)'
+            scales: logScaleOptions,
+            plugins: { title: { display: false } }
+        }
+    });
+
+    // 2. GRAFICA DE LÍNEAS (OMS vs Perú)
+    const ctx2 = document.getElementById('lineChart').getContext('2d');
+    charts.line = new Chart(ctx2, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Límite OMS',
+                    data: omsValues,
+                    borderColor: '#f1c40f', // Amarillo
+                    pointStyle: 'circle',
+                    tension: 0.1
+                },
+                {
+                    label: 'Límite Perú',
+                    data: peruValues,
+                    borderColor: '#3498db', // Azul
+                    pointStyle: 'rect',
+                    tension: 0.1
                 }
-            },
-            // Usamos escala logarítmica para manejar el gran rango de valores (15 vs 30000)
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: logScaleOptions,
+            plugins: { title: { display: false } }
+        }
+    });
+
+    // 3. GRAFICA DE DISPERSIÓN (OMS vs Perú)
+    const ctx3 = document.getElementById('dispersionChart').getContext('2d');
+    
+    // Transformamos los datos para Dispersión: (x=OMS, y=Perú)
+    const scatterData = omsValues.map((oms, index) => ({ x: oms, y: peruValues[index], label: labels[index] }));
+
+    charts.dispersion = new Chart(ctx3, {
+        type: 'scatter',
+        data: {
+            datasets: [{
+                label: 'Contaminantes',
+                data: scatterData,
+                backgroundColor: 'red',
+                pointRadius: 8,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
             scales: {
+                x: {
+                    type: 'logarithmic',
+                    position: 'bottom',
+                    title: { display: true, text: 'Límite OMS (µg/m³, Log)' }
+                },
                 y: {
                     type: 'logarithmic',
-                    title: {
-                        display: true,
-                        text: 'Concentración (µg/m³)'
-                    }
-                },
-                x: {
-                    ticks: {
-                        autoSkip: false,
-                        maxRotation: 45,
-                        minRotation: 45
+                    title: { display: true, text: 'Límite Perú (µg/m³, Log)' }
+                }
+            },
+            plugins: {
+                title: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `${context.raw.label}: OMS ${context.raw.x} / Perú ${context.raw.y}`;
+                        }
                     }
                 }
             }
         }
     });
 
-    // --- Gráfico Circular (Distribución de Valores Ingresados) ---
-    const ctx2 = document.getElementById('pieChart').getContext('2d');
+    // 4. GRAFICA CIRCULAR (Distribución valores Perú)
+    const ctx4 = document.getElementById('pieChart').getContext('2d');
     
-    if (pieChart) pieChart.destroy();
-
-    // Filtramos los valores altos de CO para que la gráfica circular sea legible
-    const filteredLabels = [];
-    const filteredValues = [];
-    const colors = [];
-    const backgroundColors = ['#f39c12', '#2ecc71', '#3498db', '#9b59b6', '#e74c3c', '#1abc9c'];
-    let colorIndex = 0;
-
-    inputValues.forEach((val, index) => {
-        // Excluimos CO (Monóxido de Carbono) ya que sus valores son muy altos y distorsionan la distribución.
-        if (!chartLabels[index].includes('Monóxido de Carbono')) {
-            filteredLabels.push(chartLabels[index]);
-            filteredValues.push(val);
-            colors.push(backgroundColors[colorIndex % backgroundColors.length]);
-            colorIndex++;
-        }
-    });
+    const pieColors = ['#f39c12', '#2ecc71', '#3498db', '#9b59b6', '#e74c3c', '#1abc9c', '#f1c40f', '#e67e22', '#34495e', '#7f8c8d', '#c0392b', '#8e44ad'];
     
-    pieChart = new Chart(ctx2, {
-        type: 'doughnut',
+    charts.pie = new Chart(ctx4, {
+        type: 'pie',
         data: {
-            labels: filteredLabels,
+            labels: labels,
             datasets: [{
-                label: 'Distribución de Concentraciones',
-                data: filteredValues,
-                backgroundColor: colors,
+                data: peruValues,
+                backgroundColor: pieColors,
                 hoverOffset: 4
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: {
-                title: {
-                    display: true,
-                    text: 'Distribución Relativa de Contaminantes Ingresados (Excluyendo Monóxido de Carbono)'
-                }
-            }
+            plugins: { title: { display: false } }
         }
     });
 }
